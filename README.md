@@ -134,15 +134,14 @@ Contoh respons yang **telah diperoleh saat uji lokal**:
   "data": "Ticket ID: TICKET-0005\nSubject: Reset password VPN gagal terus\nStatus: Diproses\nLast Update: 2026-08-27"
 }
 ```
-
 ## 6. Pengujian minimal lima skenario
 
 Pengujian dilakukan melalui Swagger UI pada server FastAPI lokal. Pengguna telah menyatakan kelima skenario berjalan sesuai harapan, tetapi respons JSON lengkap hanya terdokumentasi untuk dua contoh di bawah. Tabel membedakan hasil terkonfirmasi dari hasil yang belum disalin ke dokumentasi.
 
 | No. | Query | Expected intent | Observasi |
 |---|---|---|---|
-| 1 | Bagaimana cara reset password VPN? | `faq` | **Terkonfirmasi:** `success`, `faq`; jawaban menyebut portal self-service IT dan IT Support bila akun terkunci. |
-| 2 | Berapa jatah cuti tahunan karyawan? | `faq` | **Dilaporkan lulus** pada pengujian lokal; salin respons aktual dari Swagger jika tersedia. |
+| 1 | Bagaimana cara reset password VPN? | `faq` | **Terkonfirmasi:** `success`, `faq`; jawaban menyebut karyawan tetap memperoleh 12 hari cuti tahunan setelah masa kerja minimal 3 bulan. |
+| 2 | Berapa jatah cuti tahunan karyawan? | `faq` | **Terkonfirmasi:** pada pengujian lokal; salin respons aktual dari Swagger jika tersedia. |
 | 3 | Apa status tiket TICKET-0005? | `ticket_status` | **Terkonfirmasi:** `success`, `ticket_status`; subject *Reset password VPN gagal terus*, status *Diproses*, pembaruan 2026-08-27. |
 | 4 | Cek status tiket TICKET-9999 | `ticket_status` | **Dilaporkan lulus**; fungsi seharusnya memberi pesan tiket tidak ditemukan tanpa crash. Salin respons aktual jika tersedia. |
 | 5 | Siapa pemenang Piala Dunia 2022? | `unknown` / fallback | **Dilaporkan diuji**; respons aktual dan klasifikasi perlu dicatat untuk memverifikasi perilaku out-of-scope. |
