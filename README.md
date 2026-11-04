@@ -140,11 +140,11 @@ Pengujian dilakukan melalui Swagger UI pada server FastAPI lokal. Pengguna telah
 
 | No. | Query | Expected intent | Observasi |
 |---|---|---|---|
-| 1 | Bagaimana cara reset password VPN? | `faq` | **Terkonfirmasi:** `success`, `faq`; jawaban menyebut karyawan tetap memperoleh 12 hari cuti tahunan setelah masa kerja minimal 3 bulan. |
-| 2 | Berapa jatah cuti tahunan karyawan? | `faq` | **Terkonfirmasi:** pada pengujian lokal; salin respons aktual dari Swagger jika tersedia. |
+| 1 | Bagaimana cara reset password VPN? | `faq` | **Terkonfirmasi:** `success`, `faq`; jawaban menyebut portal self-service IT dan IT Support bila akun terkunci. |
+| 2 | Berapa jatah cuti tahunan karyawan? | `faq` | **Terkonfirmasi:** pada pengujian lokal; jawaban menyebut karyawan tetap memperoleh 12 hari cuti tahunan setelah masa kerja minimal 3 bulan. |
 | 3 | Apa status tiket TICKET-0005? | `ticket_status` | **Terkonfirmasi:** `success`, `ticket_status`; subject *Reset password VPN gagal terus*, status *Diproses*, pembaruan 2026-08-27. |
-| 4 | Cek status tiket TICKET-9999 | `ticket_status` | **Dilaporkan lulus**; fungsi seharusnya memberi pesan tiket tidak ditemukan tanpa crash. Salin respons aktual jika tersedia. |
-| 5 | Siapa pemenang Piala Dunia 2022? | `unknown` / fallback | **Dilaporkan diuji**; respons aktual dan klasifikasi perlu dicatat untuk memverifikasi perilaku out-of-scope. |
+| 4 | Cek status tiket TICKET-9999 | `ticket_status` | **Belum berhasil:**; sistem mengembalikan pesan kesalahan umum, bukan informasi bahwa tiket tidak ditemukan. |
+| 5 | Siapa pemenang Piala Dunia 2022? | `unknown` / fallback | **Terkonfirmasi:** `success`, `faq`; router mengklasifikasikan pertanyaan di luar cakupan sebagai FAQ, tetapi RAG berhasil memberikan respons fallback tanpa mengarang informasi di luar knowledge base.. |
 
 **Observasi tambahan:** pada pengujian awal, Gemini API pernah mengembalikan `404 NOT_FOUND` akibat pemilihan model yang tidak cocok/tidak tersedia dan `503 UNAVAILABLE` akibat beban layanan. Model kemudian disesuaikan. Error API ditangani sehingga endpoint memberi respons terstruktur dan aplikasi tidak berhenti.
 
