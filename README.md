@@ -12,20 +12,11 @@ Tim People & IT Operations menerima pertanyaan berulang tentang kebijakan perusa
 
 ### Jenis permintaan
 
-| Intent | Contoh | Penanganan |
-|---|---|---|
-| `faq` | “Bagaimana cara reset password VPN?”; “Berapa jatah cuti tahunan karyawan?” | Semantic search pada FAISS dan jawaban Gemini berdasarkan FAQ yang ditemukan |
-| `ticket_status` | “Apa status tiket TICKET-0005?” | Ekstraksi `ticket_id` lalu lookup langsung ke `data/mock_tickets.csv` |
-| `unknown` | Pertanyaan di luar cakupan atau intent tidak dapat ditentukan | Respons fallback; tidak mengarang kebijakan maupun status tiket |
-
-### Batasan dan asumsi
-
-- Knowledge base **hanya** menggunakan `data/it_helpdesk_knowledge_base.csv` (31 FAQ); data tiket **hanya** menggunakan `data/mock_tickets.csv` (15 tiket).
-- Data tiket adalah **mock**, bukan integrasi langsung ke sistem ticketing perusahaan; tidak ada pembuatan atau pembaruan tiket.
-- Pola ID tiket mengikuti `TICKET-XXXX` pada dataset. Ekstraksi dilakukan dengan regex.
-- Klasifikasi intent dan penyusunan jawaban menggunakan Gemini API; output dapat dipengaruhi ketersediaan layanan, kuota, dan hasil klasifikasi model.
-- Embedding knowledge base disimpan dalam index FAISS **di memori aplikasi**. Index dibangun saat dibutuhkan dan akan dibangun kembali setelah proses restart; belum ada penyimpanan index permanen.
-- Aplikasi ini adalah prototype lokal; autentikasi pengguna, otorisasi akses tiket, audit log, dan deployment cloud belum diimplementasikan.
+| Intent            | Contoh                                                                          | Penanganan                                                                   |
+| ----------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `faq`           | “Bagaimana cara reset password VPN?”; “Berapa jatah cuti tahunan karyawan?” | Semantic search pada FAISS dan jawaban Gemini berdasarkan FAQ yang ditemukan |
+| `ticket_status` | “Apa status tiket TICKET-0005?”                                               | Ekstraksi `ticket_id` lalu lookup langsung ke `data/mock_tickets.csv`    |
+| `unknown`       | Pertanyaan di luar cakupan atau intent tidak dapat ditentukan                   | Respons fallback; tidak mengarang kebijakan maupun status tiket              |
 
 ## 2. Desain workflow
 
@@ -134,25 +125,39 @@ Contoh respons yang **telah diperoleh saat uji lokal**:
   "data": "Ticket ID: TICKET-0005\nSubject: Reset password VPN gagal terus\nStatus: Diproses\nLast Update: 2026-08-27"
 }
 ```
+
 ## 6. Pengujian minimal lima skenario
 
 Pengujian dilakukan melalui Swagger UI pada server FastAPI lokal. Pengguna telah menyatakan kelima skenario berjalan sesuai harapan, tetapi respons JSON lengkap hanya terdokumentasi untuk dua contoh di bawah. Tabel membedakan hasil terkonfirmasi dari hasil yang belum disalin ke dokumentasi.
 
-| No. | Query | Expected intent | Observasi |
-|---|---|---|---|
-| 1 | Bagaimana cara reset password VPN? | `faq` | **Terkonfirmasi:** `success`, `faq`; jawaban menyebut portal self-service IT dan IT Support bila akun terkunci. |
-| 2 | Berapa jatah cuti tahunan karyawan? | `faq` | **Terkonfirmasi:** pada pengujian lokal; jawaban menyebut karyawan tetap memperoleh 12 hari cuti tahunan setelah masa kerja minimal 3 bulan. |
-| 3 | Apa status tiket TICKET-0005? | `ticket_status` | **Terkonfirmasi:** `success`, `ticket_status`; subject *Reset password VPN gagal terus*, status *Diproses*, pembaruan 2026-08-27. |
-| 4 | Cek status tiket TICKET-9999 | `ticket_status` | **Belum berhasil:**; sistem mengembalikan pesan kesalahan umum, bukan informasi bahwa tiket tidak ditemukan. |
-| 5 | Siapa pemenang Piala Dunia 2022? | `unknown` / fallback | **Terkonfirmasi:** `success`, `faq`; router mengklasifikasikan pertanyaan di luar cakupan sebagai FAQ, tetapi RAG berhasil memberikan respons fallback tanpa mengarang informasi di luar knowledge base.. |
+| No. | Query                               | Expected intent        | Observasi                                                                                                                                                                                                                                                                                                                                                                  |
+| --- | ----------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Bagaimana cara reset password VPN?  | `faq`                | **Terkonfirmasi:** `success`, `faq`; jawaban menyebut portal self-service IT dan IT Support bila akun terkunci.                                                                                                                                                                                                                                                  |
+| 2   | Berapa jatah cuti tahunan karyawan? | `faq`                | **Terkonfirmasi:**`success`, `faq`; sistem mengembalikan pesan <br />"Halo! Sebagai karyawan tetap, Anda mendapatkan jatah 12 hari cuti tahunan yang dapat mulai diambil setelah masa kerja minimal 3 bulan. Semoga informasi ini membantu!" yang berarti agent memberikan informasi cuti tahunan kepada karyawan sesuai dengan knowledge base yang ia miliki. |
+| 3   | Apa status tiket TICKET-0005?       | `ticket_status`      | **Terkonfirmasi:** `success`, `ticket_status`; subject *Reset password VPN gagal terus*, status *Diproses*, pembaruan 2026-08-27.                                                                                                                                                                                                                            |
+| 4   | Cek status tiket TICKET-9999        | `ticket_status`      | **Terkonfirmasi:`success`, `ticket_status`**; sistem mengembalikan pesan "Maaf, saya tidak menemukan tiket dengan ID TICKET-9999", yang berarti setelah dilakukan pengecekkan tidak ada ticket-9999.                                                                                                                                                            |
+| 5   | Siapa pemenang Piala Dunia 2022?    | `unknown` / fallback | **Terkonfirmasi:** `success`, `faq`; router mengklasifikasikan pertanyaan di luar cakupan sebagai FAQ, tetapi RAG berhasil memberikan respons fallback tanpa mengarang informasi di luar knowledge base.                                                                                                                                                         |
 
-**Observasi tambahan:** pada pengujian awal, Gemini API pernah mengembalikan `404 NOT_FOUND` akibat pemilihan model yang tidak cocok/tidak tersedia dan `503 UNAVAILABLE` akibat beban layanan. Model kemudian disesuaikan. Error API ditangani sehingga endpoint memberi respons terstruktur dan aplikasi tidak berhenti.
+**Observasi tambahan:** pada pengujian awal dari ke 5 query di atas, Gemini API pernah mengembalikan error berkali kali pada query ke-4. Hal ini menunjukkan adanya potensi ketidakstabilan layanan LLM saat proses intent detection. Namun, penyebab kegagalan belum dapat dipastikan karena belum dilakukan pemeriksaan traceback secara menyeluruh
 
-## 7. Docker (konfigurasi dan cara uji)
+7. Docker (konfigurasi dan cara uji)
 
-> **Belum terverifikasi:** Docker Desktop pada perangkat pengembangan masih bermasalah. Instruksi berikut adalah langkah yang **perlu dijalankan**, bukan klaim bahwa image sudah berhasil di-build.
+Docker digunakan untuk mengemas aplikasi AI Helpdesk Assistant beserta source code, dependencies, dan konfigurasi runtime ke dalam sebuah container agar aplikasi dapat dijalankan secara konsisten pada lingkungan yang berbeda.
 
-Pastikan `Dockerfile` memuat Python 3.11, memasang dependencies dari `requirements.txt`, menyalin folder `app/` dan `data/`, membuka port 8000, serta menjalankan Uvicorn pada host `0.0.0.0`.
+### 7.1 Konfigurasi Dockerfile
+
+Aplikasi menggunakan base image Python 3.11 dan menjalankan backend FastAPI melalui Uvicorn.
+
+Tahapan konfigurasi Docker meliputi:
+
+1. Menentukan base image Python 3.11.
+2. Menetapkan direktori kerja `app/`.
+3. Menyalin dan menginstal dependencies dari requirements.txt.
+4. Menyalin folder app/ dan `data/` ke dalam container.
+5. Mengekspos port 8000.
+6. Menjalankan FastAPI menggunakan Uvicorn.
+
+### 7.2 Build Docker Image
 
 Build dari direktori root:
 
@@ -160,30 +165,32 @@ Build dari direktori root:
 docker build -t it-helpdesk-assistant .
 ```
 
+Memeriksa apakah image berhasil dibuat, pastikan ada image bernama `it-helpdesk-assistant`
+
+```bash
+docker images
+```
+
+### 7.3 Menjalankan Docker Container
+
 Jalankan dengan environment variables dari `.env` lokal:
 
 ```bash
 docker run --rm --name it-helpdesk-api -p 8000:8000 --env-file .env it-helpdesk-assistant
 ```
 
-Periksa **http://127.0.0.1:8000/health** dan **http://127.0.0.1:8000/docs**; kirim kembali query FAQ dan status tiket melalui `/ask`. Hentikan server Uvicorn lokal sebelum menggunakan port 8000 untuk container. Pastikan `.dockerignore` mengecualikan `.env`, `.venv/`, dan `__pycache__/`.
+### 7.4 Pengujian Docker Container
+
+```
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000
+```
+
+Selanjutnya, endpoint dapat diuji melalui Swagger UI:
+`http://127.0.0.1:8000/docs`
 
 ## 8. Keterbatasan dan pengembangan lanjutan
 
-1. Ketergantungan pada Gemini API menyebabkan kegagalan sementara saat layanan tidak tersedia (`503`) atau nama model tidak kompatibel (`404`). Retry/backoff dapat ditambahkan pada pengembangan berikutnya.
-2. Intent detection berbasis LLM dapat keliru mengklasifikasikan pertanyaan ambigu atau di luar cakupan. Validasi intent, keyword baseline, dan aturan fallback dapat diperkuat.
-3. Semantic search belum memakai ambang relevansi yang tervalidasi; konteks yang kurang relevan bisa tetap diteruskan ke model.
-4. FAISS index disimpan di memori, sehingga embedding knowledge base mungkin dihitung kembali ketika aplikasi restart dan dapat menghabiskan waktu serta kuota API.
-5. Data tiket mock belum memiliki autentikasi atau pembatasan akses; **tidak cocok langsung dipakai sebagai sistem produksi**.
-6. Docker build/run belum terverifikasi pada perangkat lokal dan masih menjadi pekerjaan lanjutan.
-
-## 9. Keamanan dan submission
-
-- Push hanya source code, dua dataset dari starter repository, `requirements.txt`, `Dockerfile`, `.env.example`, dan `README.md`.
-- Pastikan `.env` **tidak** masuk Git. Verifikasi menggunakan `git status` sebelum commit.
-- Nama repository mengikuti format **`assignment-helpdesk-agent-nama-peserta`**.
-- Repository harus dapat diakses oleh mentor.
-
----
-
-**Catatan penilaian:** Dokumentasi ini sengaja tidak menyatakan Docker sudah berhasil karena pengujian container belum selesai. Setelah Docker berfungsi, tambahkan hasil build/run dan bukti respons endpoint dalam container.
+**Ketergantungan Gemini API:** Sistem dapat mengalami error `503` atau `404`. Pengembangan selanjutnya dapat menambahkan mekanisme retry dan fallback.
